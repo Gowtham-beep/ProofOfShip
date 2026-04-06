@@ -9,12 +9,18 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "fastify": "^4.26.2",
+    "@fastify/autoload": "^5.8.0",
+    "@proofofship/github": "workspace:^",
+    "@proofofship/types": "workspace:^",
     "dotenv": "^16.4.5",
-    "@fastify/autoload": "^5.8.0"
+    "fastify": "^4.26.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.11.24",
+    "@types/pg": "^8.20.0",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3"
   }

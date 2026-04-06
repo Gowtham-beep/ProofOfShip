@@ -16,3 +16,19 @@ export interface ProjectAnalysis {
   repoUrl: string;
   score: number;
 }
+
+export interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  avatar_url: string;
+  email: string | null;
+}
+
+export interface AuthUser {
+  id: string;         // internal UUID
+  githubId: number;
+  username: string;
+  avatarUrl: string;
+  plan: 'free' | 'pro' | 'team';
+}
