@@ -4,5 +4,15 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "ioredis": "^5.10.1",
+    "pg": "^8.20.0"
+  }
 }
