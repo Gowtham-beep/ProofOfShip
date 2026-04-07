@@ -71,6 +71,49 @@ export interface RepoRecord {
   sizeKb: number;
   defaultBranch: string;
   topics: string[];
+  hasWiki?: boolean;
   pushedAt: string | null;
   ingestedAt: string;
+}
+
+export type ComplexityTier =
+  | 'trivial'
+  | 'simple'
+  | 'moderate'
+  | 'complex'
+  | 'advanced';
+
+export interface ScoreBreakdown {
+  comprehensionHealth: number;
+  hallucinationDebt: number;
+  architecturalConsistency: number;
+  debtTrajectory: number;
+  complexityAdjustment: number;
+  complexityTier: ComplexityTier;
+  signals: {
+    languageCount: number;
+    primaryLanguage: string | null;
+    hasTests: boolean;
+    hasDocs: boolean;
+    hasCI: boolean;
+    topicSignals: string[];
+    sizeKb: number;
+    commitVelocity: 'active' | 'moderate' | 'stale' | 'dead';
+  };
+  llmInsights: {
+    comprehensionSummary: string;
+    hallucinationRisk: 'low' | 'medium' | 'high';
+    architectureNotes: string;
+    improvementSuggestions: string[];
+  };
+}
+
+export interface ProofOfShipScore {
+  repoId: string;
+  userId: string;
+  score: number;
+  breakdown: ScoreBreakdown;
+  percentile: number | null;
+  version: number;
+  createdAt: string;
 }

@@ -27,7 +27,7 @@ export const query = (text: string, params?: any[]) => {
 
 export const initDb = async () => {
   try {
-    const migrations = ['001_create_users.sql', '002_create_repos.sql'];
+    const migrations = ['001_create_users.sql', '002_create_repos.sql', '003_create_scores.sql'];
     for (const file of migrations) {
       const migrationPath = path.join(__dirname, 'migrations', file);
       const migrationSql = fs.readFileSync(migrationPath, 'utf-8');

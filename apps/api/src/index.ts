@@ -9,6 +9,7 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 import Fastify from 'fastify';
 import authRoutes from './routes/auth.js';
 import reposRoutes from './routes/repos.js';
+import scoresRoutes from './routes/scores.js';
 import { initDb, pool } from './db/client.js';
 import { ingestionWorker } from './queue/ingestionWorker.js';
 import { ingestionQueue } from './queue/ingestionQueue.js';
@@ -25,6 +26,7 @@ fastify.get('/health', async () => {
 // Register routes
 fastify.register(authRoutes);
 fastify.register(reposRoutes);
+fastify.register(scoresRoutes);
 
 const port = Number(process.env.PORT) || 3001;
 

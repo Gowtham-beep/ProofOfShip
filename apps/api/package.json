@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fastify/autoload": "^5.8.0",
+    "@proofofship/analysis": "workspace:^",
     "@proofofship/github": "workspace:^",
     "@proofofship/types": "workspace:^",
     "bullmq": "^5.73.0",
