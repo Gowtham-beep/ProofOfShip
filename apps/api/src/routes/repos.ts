@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { query } from '../db/client.js';
-import { ingestUserRepos } from '../services/ingestion.js';
+import { ingestionQueue } from '../queue/ingestionQueue.js';
 
 export default async function reposRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -32,9 +32,9 @@ export default async function reposRoutes(fastify: FastifyInstance) {
       }
 
       const accessToken = rows[0].github_access_token;
-      const result = await ingestUserRepos(userId, accessToken);
+      const job = await ingestionQueue.add('ingest', { userId, accessToken });
 
-      return { message: "Ingestion complete", ingested: result.ingested, updated: result.updated };
+      return { message: "Ingestion queued", jobId: job.id };
     } catch (error: any) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Ingestion failed', details: error.message });

@@ -9,7 +9,9 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 import Fastify from 'fastify';
 import authRoutes from './routes/auth.js';
 import reposRoutes from './routes/repos.js';
-import { initDb } from './db/client.js';
+import { initDb, pool } from './db/client.js';
+import { ingestionWorker } from './queue/ingestionWorker.js';
+import { ingestionQueue } from './queue/ingestionQueue.js';
 
 const fastify = Fastify({
   logger: true
@@ -31,6 +33,7 @@ const start = async () => {
     await initDb();
     await fastify.listen({ port, host: '0.0.0.0' });
     fastify.log.info(`API running on http://localhost:${port}`);
+    console.log("Ingestion worker started");
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
@@ -38,3 +41,14 @@ const start = async () => {
 };
 
 start();
+
+const shutdown = async () => {
+  console.log('Shutting down gracefully...');
+  await ingestionWorker.close();
+  await ingestionQueue.close();
+  await pool.end();
+  process.exit(0);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

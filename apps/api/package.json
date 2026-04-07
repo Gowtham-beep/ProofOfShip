@@ -12,6 +12,7 @@
     "@fastify/autoload": "^5.8.0",
     "@proofofship/github": "workspace:^",
     "@proofofship/types": "workspace:^",
+    "bullmq": "^5.73.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.26.2",
     "jsonwebtoken": "^9.0.3",
