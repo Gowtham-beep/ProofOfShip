@@ -27,11 +27,13 @@ export const query = (text: string, params?: any[]) => {
 
 export const initDb = async () => {
   try {
-    const migrationPath = path.join(__dirname, 'migrations', '001_create_users.sql');
-    const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
-    
-    await pool.query(migrationSql);
-    console.log('Database migration applied successfully.');
+    const migrations = ['001_create_users.sql', '002_create_repos.sql'];
+    for (const file of migrations) {
+      const migrationPath = path.join(__dirname, 'migrations', file);
+      const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
+      await pool.query(migrationSql);
+    }
+    console.log('Database migrations applied successfully.');
   } catch (error: any) {
     console.error('Failed to apply database migration:', error.message || error);
     throw error;

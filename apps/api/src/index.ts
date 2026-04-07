@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 import Fastify from 'fastify';
 import authRoutes from './routes/auth.js';
+import reposRoutes from './routes/repos.js';
 import { initDb } from './db/client.js';
 
 const fastify = Fastify({
@@ -21,6 +22,7 @@ fastify.get('/health', async () => {
 
 // Register routes
 fastify.register(authRoutes);
+fastify.register(reposRoutes);
 
 const port = Number(process.env.PORT) || 3001;
 
