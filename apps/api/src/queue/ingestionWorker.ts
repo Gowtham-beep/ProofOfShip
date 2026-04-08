@@ -79,7 +79,8 @@ export const ingestionWorker = new Worker<IngestionJobData>(
         ]);
 
         // 4. Log success
-        console.log(`Scored repo ${repo.fullName}: ${scoreResult.score}/100 (${scoreResult.breakdown.complexityTier})`);
+        const progress = `${repos.indexOf(repo) + 1}/${repos.length}`;
+        console.log(`[${progress}] Scored repo ${repo.fullName}: ${scoreResult.score}/100 (${scoreResult.breakdown.complexityTier})`);
         
         // Respect Gemini rate limits
         await delay(500);

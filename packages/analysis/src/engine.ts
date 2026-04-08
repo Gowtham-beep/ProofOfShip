@@ -28,7 +28,7 @@ export async function analyzeRepo(repo: RepoRecord): Promise<ProofOfShipScore> {
   const complexityAdjustment = scoreComplexityAdjustment(tier);
 
   // 4. LLM insights (never throws)
-  const llmResult = await getLLMInsights(repo, signals, {
+  const llmResult = await getLLMInsights(repo, signals, tier, {
     comprehensionHealth,
     hallucinationDebt,
     architecturalConsistency,

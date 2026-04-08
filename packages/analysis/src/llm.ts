@@ -1,4 +1,4 @@
-import type { RepoRecord, ScoreBreakdown } from '@proofofship/types';
+import type { RepoRecord, ScoreBreakdown, ComplexityTier } from '@proofofship/types';
 
 type Signals = ScoreBreakdown['signals'];
 type LLMInsights = ScoreBreakdown['llmInsights'];
@@ -48,6 +48,7 @@ async function callGemini(model: string, prompt: string): Promise<string> {
 export async function getLLMInsights(
   repo: RepoRecord,
   signals: Signals,
+  complexityTier: ComplexityTier,
   deterministicScores: {
     comprehensionHealth: number;
     hallucinationDebt: number;
@@ -80,7 +81,6 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     };
 
     // ── Step B: gemini-2.5-pro for deep comprehension analysis ────────────────
-    const complexityTier = signals.topicSignals; // passed via signals for context
     const proPrompt = `You are a senior engineer reviewing a codebase for comprehension quality and architectural health.
 
 Repo: ${repo.fullName}
@@ -94,6 +94,7 @@ Has tests: ${signals.hasTests}
 Has docs: ${signals.hasDocs}
 Has CI: ${signals.hasCI}
 Commit velocity: ${signals.commitVelocity}
+Complexity tier: ${complexityTier}
 Deterministic scores:
   Comprehension health: ${deterministicScores.comprehensionHealth}
   Architectural consistency: ${deterministicScores.architecturalConsistency}
