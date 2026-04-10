@@ -35,6 +35,18 @@ interface TopRepoRow {
   complexity_tier: string;
 }
 
+async function fetchAvatarAsBase64(url: string): Promise<string> {
+  try {
+    const res = await fetch(url)
+    const buffer = await res.arrayBuffer()
+    const base64 = Buffer.from(buffer).toString('base64')
+    const mime = res.headers.get('content-type') || 'image/png'
+    return `data:${mime};base64,${base64}`
+  } catch {
+    return ''
+  }
+}
+
 export async function getCardData(username: string): Promise<CardData | null> {
   const userCheck = await query<{id: number; github_username: string; github_avatar_url: string}>(
     `SELECT id, github_username, github_avatar_url FROM users WHERE github_username = $1`,
@@ -72,9 +84,10 @@ export async function getCardData(username: string): Promise<CardData | null> {
   );
 
   if (userScores.length === 0) {
+    const avatarDataUri = await fetchAvatarAsBase64(userBase.github_avatar_url || '');
     return {
       username: userBase.github_username,
-      avatarUrl: userBase.github_avatar_url || '',
+      avatarUrl: avatarDataUri,
       score: 0,
       complexityTier: 'pending',
       topRepo: { name: 'Not analyzed yet', score: 0 },
@@ -111,9 +124,11 @@ export async function getCardData(username: string): Promise<CardData | null> {
     ? topRepos[0].complexity_tier
     : 'trivial';
 
+  const avatarDataUri = await fetchAvatarAsBase64(user.github_avatar_url || '');
+
   return {
     username: user.github_username,
-    avatarUrl: user.github_avatar_url || '',
+    avatarUrl: avatarDataUri,
     score: user.avg_score,
     complexityTier,
     topRepo,

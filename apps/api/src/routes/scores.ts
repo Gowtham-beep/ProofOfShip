@@ -3,61 +3,12 @@ import jwt from 'jsonwebtoken';
 import { query } from '../db/client.js';
 
 export default async function scoresRoutes(fastify: FastifyInstance) {
-  fastify.get('/profile/:username', async (request, reply) => {
-    const { username } = request.params as { username: string };
-    
-    try {
-      const userRes = await query('SELECT id FROM users WHERE github_username = $1', [username]);
-      if (userRes.rows.length === 0) {
-        return reply.code(404).send({ error: 'User not found' });
-      }
-      const userId = userRes.rows[0].id;
 
-      const sqlScores = `
-        SELECT DISTINCT ON (repo_id) s.*, r.full_name, r.name,
-          r.language, r.description
-        FROM scores s
-        JOIN repos r ON r.id = s.repo_id
-        WHERE s.user_id = $1
-        ORDER BY repo_id, version DESC
-      `;
-      const { rows: scoreRows } = await query(sqlScores, [userId]);
-      
-      const scores = scoreRows.map(r => ({
-        score: r.score,
-        complexityTier: r.complexity_tier,
-        repo: {
-          name: r.name,
-          language: r.language,
-          description: r.description
-        }
-      }));
-      scores.sort((a, b) => b.score - a.score);
-
-      let totalScore = 0;
-      let topRepo = { fullName: '', score: -1 };
-      
-      for (const r of scoreRows) {
-        totalScore += r.score;
-        if (r.score > topRepo.score) {
-          topRepo = { fullName: r.full_name, score: r.score };
-        }
-      }
-
-      const summary = {
-        averageScore: scoreRows.length > 0 ? Math.round(totalScore / scoreRows.length) : 0,
-        totalRepos: scoreRows.length,
-        topRepo: scoreRows.length > 0 ? topRepo : null
-      };
-
-      return { scores, summary };
-    } catch (error: any) {
-      request.log.error(error);
-      return reply.code(500).send({ error: 'Failed to fetch public profile' });
-    }
-  });
 
   fastify.addHook('preHandler', async (request, reply) => {
+    const routeConfig = (request.routeOptions?.config as any)
+    if (routeConfig?.skipAuth) return
+
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return reply.code(401).send({ error: 'Missing or invalid Authorization header' });
@@ -222,5 +173,89 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: 'Failed to fetch score history' });
     }
   });
+  fastify.get('/profile/:username',
+    { config: { skipAuth: true } },
+    async (request, reply) => {
+    const { username } = request.params as { username: string }
+
+    // Find user
+    const userResult = await query(
+      'SELECT id FROM users WHERE github_username = $1',
+      [username]
+    )
+    if (userResult.rows.length === 0) {
+      return reply.code(404).send({ error: 'User not found' })
+    }
+    const userId = userResult.rows[0].id
+
+    // Latest score per repo
+    const scoresResult = await query(
+      `SELECT DISTINCT ON (s.repo_id)
+         s.score, s.complexity_tier as "complexityTier",
+         s.comprehension_health as "comprehensionHealth",
+         s.hallucination_debt as "hallucinationDebt",
+         s.architectural_consistency as "architecturalConsistency",
+         s.debt_trajectory as "debtTrajectory",
+         s.breakdown,
+         s.created_at as "createdAt",
+         r.name, r.full_name as "fullName",
+         r.language, r.description
+       FROM scores s
+       JOIN repos r ON r.id = s.repo_id
+       WHERE s.user_id = $1
+       ORDER BY s.repo_id, s.version DESC`,
+      [userId]
+    )
+
+    // Summary
+    const summaryResult = await query(
+      `SELECT
+         AVG(sub.score)::int as "averageScore",
+         COUNT(*) as "totalRepos",
+         MAX(sub.score) as "topScore"
+       FROM (
+         SELECT DISTINCT ON (repo_id) score, repo_id
+         FROM scores
+         WHERE user_id = $1
+         ORDER BY repo_id, version DESC
+       ) sub`,
+      [userId]
+    )
+
+    const topRepoResult = await query(
+      `SELECT r.full_name as "fullName", s.score
+       FROM scores s
+       JOIN repos r ON r.id = s.repo_id
+       WHERE s.user_id = $1
+       ORDER BY s.score DESC
+       LIMIT 1`,
+      [userId]
+    )
+
+    const scores = scoresResult.rows.map(row => ({
+      score: row.score,
+      complexityTier: row.complexityTier,
+      comprehensionHealth: row.comprehensionHealth,
+      hallucinationDebt: row.hallucinationDebt,
+      architecturalConsistency: row.architecturalConsistency,
+      debtTrajectory: row.debtTrajectory,
+      breakdown: row.breakdown,
+      createdAt: row.createdAt,
+      repo: {
+        name: row.name,
+        fullName: row.fullName,
+        language: row.language,
+        description: row.description,
+      }
+    }))
+    .sort((a, b) => b.score - a.score)
+
+    const summary = {
+      averageScore: summaryResult.rows[0]?.averageScore ?? 0,
+      totalRepos: Number(summaryResult.rows[0]?.totalRepos ?? 0),
+      topRepo: topRepoResult.rows[0] ?? null,
+    }
+
+    return { scores, summary }
+  })
 }
-// This will show you what's at the bottom of the file

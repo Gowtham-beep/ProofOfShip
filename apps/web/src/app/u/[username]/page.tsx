@@ -35,8 +35,12 @@ export default function PublicProfile() {
       })
       .then(data => {
         if (!data) return
-        setScores(data.scores)
-        setSummary(data.summary)
+        if (Array.isArray(data.scores)) {
+          setScores(data.scores)
+          setSummary(data.summary)
+        } else {
+          setNotFound(true)
+        }
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -112,7 +116,7 @@ export default function PublicProfile() {
 
         {/* Repos */}
         <div className="space-y-3">
-          {scores.map((s, i) => (
+          {(scores ?? []).map((s, i) => (
             <div key={i}
               className="bg-surface border border-border
               rounded-lg p-5 flex items-center

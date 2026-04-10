@@ -63,8 +63,8 @@ export default function Dashboard() {
   const [username, setUsername] = useState('')
 
   const [showSelection, setShowSelection] = useState(false)
-  const [isIngesting, setIsIngesting] = useState(false)
-  const [isQueuing, setIsQueuing] = useState(false)
+  const [ingesting, setIngesting] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
   const [queueMessage, setQueueMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRepoIds, setSelectedRepoIds] = useState<Set<string>>(new Set())
@@ -97,18 +97,31 @@ export default function Dashboard() {
         if (scoresData.length === 0) {
           setShowSelection(true) // State A
           if (reposData.length === 0) {
-            setIsIngesting(true)
+            setIngesting(true)
             fetch('http://localhost:3001/repos/ingest', { method: 'POST', headers })
               .then(() => {
-                const interval = setInterval(async () => {
-                  const check = await fetch('http://localhost:3001/repos', { headers })
-                  const checkData = await check.json()
-                  if (checkData.length > 0) {
-                    setRepos(checkData)
-                    setIsIngesting(false)
-                    clearInterval(interval)
+                let prevCount = 0
+                const pollRepos = async () => {
+                  try {
+                    const res = await fetch('http://localhost:3001/repos', { headers })
+                    const data = await res.json()
+                    if (Array.isArray(data)) {
+                      setRepos(data)
+                      if (data.length === prevCount && data.length > 0) {
+                        clearInterval(pollInterval)
+                        setIngesting(false)
+                      }
+                      prevCount = data.length
+                    }
+                  } catch (e) {
+                    // Ignore transient errors
                   }
-                }, 2000)
+                }
+                const pollInterval = setInterval(pollRepos, 3000)
+                setTimeout(() => {
+                  clearInterval(pollInterval)
+                  setIngesting(false)
+                }, 60000)
               })
           }
         }
@@ -123,7 +136,7 @@ export default function Dashboard() {
 
   const handleAnalyze = async () => {
     if (selectedRepoIds.size === 0) return
-    setIsQueuing(true)
+    setAnalyzing(true)
     const token = localStorage.getItem('pos_token')
     
     try {
@@ -139,12 +152,10 @@ export default function Dashboard() {
       if (res.ok) {
         setQueueMessage('Analysis queued — this takes ~2 min per repo')
       } else {
-        setQueueMessage('Failed to queue analysis')
-        setIsQueuing(false)
+        setAnalyzing(false)
       }
     } catch (e) {
-      setQueueMessage('Failed to queue analysis')
-      setIsQueuing(false)
+      setAnalyzing(false)
     }
   }
 
@@ -254,72 +265,85 @@ export default function Dashboard() {
               <p className="text-muted">Choose the repos you want scored. We'll analyze complexity, code quality, and generate your ProofOfShip Score.</p>
             </div>
             
-            {isIngesting ? (
-              <div className="bg-surface border border-border rounded-lg p-12 text-center">
-                <div className="w-8 h-8 border-2 border-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-muted">Discovering your public repos...</p>
+            {ingesting && (
+              <div className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3 mb-6">
+                <div className="w-4 h-4 border-2 border-green border-t-transparent rounded-full animate-spin shrink-0"></div>
+                <p className="text-sm text-muted">
+                  Fetching your repositories... ({repos.length} found)
+                </p>
               </div>
-            ) : (
-              <div className="bg-surface border border-border rounded-lg p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <input
-                    type="text"
-                    placeholder="Search repos..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-bg border border-border text-text text-sm rounded-md px-3 py-2 w-64 focus:outline-none focus:border-green"
-                  />
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted font-mono">{selectedRepoIds.size} repos selected</span>
-                    <button
-                      onClick={toggleSelectAll}
-                      className="text-sm text-text hover:text-green transition-colors border border-border px-3 py-1.5 rounded bg-bg">
-                      {selectedRepoIds.size === filteredRepos.length ? 'Deselect All' : 'Select All'}
-                    </button>
+            )}
+            
+            <div className="bg-surface border border-border rounded-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <input
+                  type="text"
+                  placeholder="Search repos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-bg border border-border text-text text-sm rounded-md px-3 py-2 w-64 focus:outline-none focus:border-green"
+                />
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-muted font-mono">{selectedRepoIds.size} repos selected</span>
+                  <button
+                    onClick={toggleSelectAll}
+                    className="text-sm text-text hover:text-green transition-colors border border-border px-3 py-1.5 rounded bg-bg">
+                    {selectedRepoIds.size === filteredRepos.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                  {analyzing ? (
+                    <div className="flex items-center gap-3 bg-surface border border-green/30 rounded-lg px-4 py-3">
+                      <div className="w-4 h-4 border-2 border-green border-t-transparent rounded-full animate-spin shrink-0"></div>
+                      <div>
+                        <p className="text-sm text-text font-medium">Analysis queued</p>
+                        <p className="text-xs text-muted">This takes ~2 minutes per repo. Refresh the page when done.</p>
+                      </div>
+                    </div>
+                  ) : (
                     <button
                       onClick={handleAnalyze}
-                      disabled={selectedRepoIds.size === 0 || isQueuing}
+                      disabled={selectedRepoIds.size === 0}
                       className="text-sm bg-green text-bg font-bold px-4 py-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity">
                       Analyze Selected Repos
                     </button>
-                  </div>
-                </div>
-
-                {queueMessage ? (
-                  <div className="bg-bg border border-green/30 text-green px-4 py-3 rounded mb-6 text-sm flex items-center justify-between">
-                    <span>{queueMessage}</span>
-                    {scores.length > 0 && (
-                      <button onClick={() => setShowSelection(false)} className="underline font-bold">Go back to scores</button>
-                    )}
-                  </div>
-                ) : null}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2">
-                  {filteredRepos.map(r => {
-                    const isSelected = selectedRepoIds.has(r.id)
-                    return (
-                      <div key={r.id}
-                        onClick={() => toggleRepo(r.id)}
-                        className={`cursor-pointer border rounded-lg p-4 transition-colors ${isSelected ? 'border-green bg-green/5' : 'border-border bg-bg hover:border-muted'}`}>
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-green bg-green' : 'border-muted'}`}>
-                              {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0d1117" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                            </div>
-                            <p className="font-bold text-text truncate">{r.name}</p>
-                          </div>
-                        </div>
-                        {r.description && <p className="text-xs text-muted truncate mb-3">{r.description}</p>}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted bg-surface border border-border rounded px-2 py-0.5">{getClientComplexity(r.sizeKb)}</span>
-                          {r.language && <span className="text-[10px] text-muted">{r.language}</span>}
-                        </div>
-                      </div>
-                    )
-                  })}
+                  )}
                 </div>
               </div>
-            )}
+
+              {queueMessage ? (
+                <div className="bg-bg border border-green/30 text-green px-4 py-3 rounded mb-6 text-sm flex items-center justify-between">
+                  <span>{queueMessage}</span>
+                  {scores.length > 0 && (
+                    <button onClick={() => setShowSelection(false)} className="underline font-bold">Go back to scores</button>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2">
+                {filteredRepos.map(r => {
+                  const isSelected = selectedRepoIds.has(r.id)
+                  return (
+                    <div key={r.id}
+                      onClick={() => toggleRepo(r.id)}
+                      style={{ animation: 'fadeIn 0.3s ease-in' }}
+                      className={`cursor-pointer border rounded-lg p-4 transition-colors ${isSelected ? 'border-green bg-green/5' : 'border-border bg-bg hover:border-muted'}`}>
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-green bg-green' : 'border-muted'}`}>
+                            {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0d1117" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                          </div>
+                          <p className="font-bold text-text truncate">{r.name}</p>
+                        </div>
+                      </div>
+                      {r.description && <p className="text-xs text-muted truncate mb-3">{r.description}</p>}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted bg-surface border border-border rounded px-2 py-0.5">{getClientComplexity(r.sizeKb)}</span>
+                        {r.language && <span className="text-[10px] text-muted">{r.language}</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         ) : (
           /* State B: Repos list */
