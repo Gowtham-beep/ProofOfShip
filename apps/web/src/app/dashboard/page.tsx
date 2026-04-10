@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -68,6 +68,13 @@ export default function Dashboard() {
   const [queueMessage, setQueueMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRepoIds, setSelectedRepoIds] = useState<Set<string>>(new Set())
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current)
+    }
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('pos_token')
@@ -136,21 +143,48 @@ export default function Dashboard() {
 
   const handleAnalyze = async () => {
     if (selectedRepoIds.size === 0) return
+    const initialScoreCount = scores.length
+    const expectedCount = selectedRepoIds.size
     setAnalyzing(true)
     const token = localStorage.getItem('pos_token')
+    const headers = { 
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
     
     try {
       const res = await fetch('http://localhost:3001/repos/analyze', {
         method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({ repoIds: Array.from(selectedRepoIds) })
       })
       
       if (res.ok) {
         setQueueMessage('Analysis queued — this takes ~2 min per repo')
+        
+        pollingInterval.current = setInterval(async () => {
+          try {
+            const scoresRes = await fetch('http://localhost:3001/scores', { headers })
+            const scoresData = await scoresRes.json()
+            
+            if (scoresData.length >= initialScoreCount + expectedCount) {
+              setScores(scoresData)
+              const summaryRes = await fetch('http://localhost:3001/scores/summary', { headers })
+              const summaryData = await summaryRes.json()
+              setSummary(summaryData)
+              
+              if (pollingInterval.current) {
+                clearInterval(pollingInterval.current)
+                pollingInterval.current = null
+              }
+              setAnalyzing(false)
+              setQueueMessage('')
+              setShowSelection(false)
+            }
+          } catch (e) {
+            // Quietly ignore polling errors
+          }
+        }, 5000)
       } else {
         setAnalyzing(false)
       }
