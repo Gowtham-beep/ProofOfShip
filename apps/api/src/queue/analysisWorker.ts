@@ -88,6 +88,16 @@ export const analysisWorker = new Worker<AnalysisJobData>(
         }
     }
     
+    try {
+      const userRes = await query('SELECT github_username FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length > 0) {
+        const username = userRes.rows[0].github_username;
+        await queueConnection.del(`card:${username}`);
+      }
+    } catch (err: any) {
+      console.warn(`Failed to bust SVG cache for userId ${userId}:`, err.message);
+    }
+    
     return { scored };
   },
   {
