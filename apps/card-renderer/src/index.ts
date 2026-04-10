@@ -4,8 +4,15 @@ import { getCardData } from './scores.js';
 import { generateCard } from './svg.js';
 import { getCached, setCache } from './cache.js';
 
+import cors from '@fastify/cors';
+
 const fastify = Fastify({
   logger: true
+});
+
+await fastify.register(cors, {
+  origin: '*',
+  methods: ['GET'],
 });
 
 fastify.get('/health', async () => {
@@ -15,12 +22,11 @@ fastify.get('/health', async () => {
 fastify.get('/card/:username', async (request, reply) => {
   const { username } = request.params as { username: string };
   const cacheKey = `card:${username}`;
-  const ttl = 3600;
 
   const cached = await getCached(cacheKey);
   if (cached) {
     reply.header('Content-Type', 'image/svg+xml');
-    reply.header('Cache-Control', 'public, max-age=3600');
+    reply.header('Cache-Control', 'public, max-age=300'); // Safe default for cache hits
     reply.header('X-Cache', 'HIT');
     return reply.send(cached);
   }
@@ -31,11 +37,12 @@ fastify.get('/card/:username', async (request, reply) => {
     return reply.type('text/plain').send('User not found');
   }
 
+  const ttl = cardData.pending ? 300 : 3600;
   const svg = generateCard(cardData);
   await setCache(cacheKey, svg, ttl);
 
   reply.header('Content-Type', 'image/svg+xml');
-  reply.header('Cache-Control', 'public, max-age=3600');
+  reply.header('Cache-Control', `public, max-age=${ttl}`);
   reply.header('X-Cache', 'MISS');
   return reply.send(svg);
 });

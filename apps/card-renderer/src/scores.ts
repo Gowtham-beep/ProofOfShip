@@ -14,6 +14,7 @@ export interface CardData {
     debtTrajectory: number;
   };
   lastUpdated: string;
+  pending?: boolean;
 }
 
 interface UserScoreRow {
@@ -35,6 +36,17 @@ interface TopRepoRow {
 }
 
 export async function getCardData(username: string): Promise<CardData | null> {
+  const userCheck = await query<{id: number; github_username: string; github_avatar_url: string}>(
+    `SELECT id, github_username, github_avatar_url FROM users WHERE github_username = $1`,
+    [username]
+  );
+
+  if (userCheck.length === 0) {
+    return null; // User never logged in
+  }
+
+  const userBase = userCheck[0];
+
   const userScores = await query<UserScoreRow>(
     `SELECT
       u.github_username,
@@ -60,7 +72,22 @@ export async function getCardData(username: string): Promise<CardData | null> {
   );
 
   if (userScores.length === 0) {
-    return null;
+    return {
+      username: userBase.github_username,
+      avatarUrl: userBase.github_avatar_url || '',
+      score: 0,
+      complexityTier: 'pending',
+      topRepo: { name: 'Not analyzed yet', score: 0 },
+      totalRepos: 0,
+      breakdown: {
+        comprehensionHealth: 0,
+        hallucinationDebt: 0,
+        architecturalConsistency: 0,
+        debtTrajectory: 0,
+      },
+      lastUpdated: new Date().toISOString(),
+      pending: true,
+    };
   }
 
   const user = userScores[0];

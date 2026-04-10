@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import authRoutes from './routes/auth.js';
 import reposRoutes from './routes/repos.js';
 import scoresRoutes from './routes/scores.js';
@@ -18,6 +19,10 @@ const fastify = Fastify({
   logger: true
 });
 
+fastify.register(cors, {
+  origin: true, // Allow all origins for local dev, or specific origins like ['http://localhost:3000']
+  credentials: true
+});
 
 fastify.get('/health', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() };

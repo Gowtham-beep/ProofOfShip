@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'ProofOfShip — Prove You Ship Clean Code',
-  description: 'Connect GitHub. Get a verified ProofOfShip Score. Share it everywhere.',
+  description: 'Verified reputation for developers who ship with AI.',
 }
 
 export default function RootLayout({
@@ -13,12 +13,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1"
-        />
-      </head>
       <body>{children}</body>
     </html>
   )

@@ -3,6 +3,60 @@ import jwt from 'jsonwebtoken';
 import { query } from '../db/client.js';
 
 export default async function scoresRoutes(fastify: FastifyInstance) {
+  fastify.get('/profile/:username', async (request, reply) => {
+    const { username } = request.params as { username: string };
+    
+    try {
+      const userRes = await query('SELECT id FROM users WHERE github_username = $1', [username]);
+      if (userRes.rows.length === 0) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+      const userId = userRes.rows[0].id;
+
+      const sqlScores = `
+        SELECT DISTINCT ON (repo_id) s.*, r.full_name, r.name,
+          r.language, r.description
+        FROM scores s
+        JOIN repos r ON r.id = s.repo_id
+        WHERE s.user_id = $1
+        ORDER BY repo_id, version DESC
+      `;
+      const { rows: scoreRows } = await query(sqlScores, [userId]);
+      
+      const scores = scoreRows.map(r => ({
+        score: r.score,
+        complexityTier: r.complexity_tier,
+        repo: {
+          name: r.name,
+          language: r.language,
+          description: r.description
+        }
+      }));
+      scores.sort((a, b) => b.score - a.score);
+
+      let totalScore = 0;
+      let topRepo = { fullName: '', score: -1 };
+      
+      for (const r of scoreRows) {
+        totalScore += r.score;
+        if (r.score > topRepo.score) {
+          topRepo = { fullName: r.full_name, score: r.score };
+        }
+      }
+
+      const summary = {
+        averageScore: scoreRows.length > 0 ? Math.round(totalScore / scoreRows.length) : 0,
+        totalRepos: scoreRows.length,
+        topRepo: scoreRows.length > 0 ? topRepo : null
+      };
+
+      return { scores, summary };
+    } catch (error: any) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Failed to fetch public profile' });
+    }
+  });
+
   fastify.addHook('preHandler', async (request, reply) => {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -169,3 +223,4 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
     }
   });
 }
+// This will show you what's at the bottom of the file
