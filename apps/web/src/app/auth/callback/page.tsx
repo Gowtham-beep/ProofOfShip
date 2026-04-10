@@ -10,6 +10,13 @@ export default function AuthCallback() {
     const token = params.get('token')
     if (token) {
       localStorage.setItem('pos_token', token)
+      
+      // Fire and forget repo ingestion
+      fetch('http://localhost:3001/repos/ingest', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(console.error)
+
       router.replace('/dashboard')
     } else {
       router.replace('/?error=auth_failed')

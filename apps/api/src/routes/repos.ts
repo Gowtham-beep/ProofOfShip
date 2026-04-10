@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { query } from '../db/client.js';
 import { ingestionQueue } from '../queue/ingestionQueue.js';
+import { analysisQueue } from '../queue/analysisQueue.js';
 
 export default async function reposRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -39,6 +40,30 @@ export default async function reposRoutes(fastify: FastifyInstance) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Ingestion failed', details: error.message });
     }
+  });
+
+  fastify.post('/repos/analyze', async (request, reply) => {
+    const userId = (request as any).user.id;
+    const { repoIds } = request.body as { repoIds: string[] };
+
+    if (!Array.isArray(repoIds) || repoIds.length === 0 || repoIds.length > 20) {
+      return reply.code(400).send({ error: 'repoIds must be a non-empty array, max 20' });
+    }
+
+    const validRepoIds: string[] = [];
+    for (const repoId of repoIds) {
+      const { rows } = await query('SELECT id FROM repos WHERE id = $1 AND user_id = $2', [repoId, userId]);
+      if (rows.length > 0) {
+        validRepoIds.push(repoId);
+      }
+    }
+
+    if (validRepoIds.length === 0) {
+      return { message: 'Analysis queued', jobId: null, repoCount: 0 };
+    }
+
+    const job = await analysisQueue.add('analyze', { userId, repoIds: validRepoIds });
+    return { message: 'Analysis queued', jobId: job.id, repoCount: validRepoIds.length };
   });
 
   fastify.get('/repos', async (request, reply) => {
