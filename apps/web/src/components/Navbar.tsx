@@ -1,9 +1,23 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar() {
+  const router = useRouter()
   const [user, setUser] = useState<{username: string} | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('pos_token')
@@ -30,11 +44,40 @@ export default function Navbar() {
         <div className="flex items-center gap-6">
           {user ? (
             <>
-              <Link href={`/u/${user.username}`}
-                className="text-sm text-muted hover:text-text
-                transition-colors">
-                @{user.username}
-              </Link>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="text-sm text-muted hover:text-text
+                  transition-colors outline-none"
+                >
+                  @{user.username}
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-40 bg-bg
+                    border border-border rounded-lg py-1 z-50">
+                    <Link
+                      href={`/u/${user.username}`}
+                      onClick={() => setDropdownOpen(false)}
+                      className="block w-full text-left px-4 py-2 text-sm
+                        text-muted hover:text-text hover:bg-surface transition-colors"
+                    >
+                      View Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('pos_token')
+                        router.push('/')
+                        setDropdownOpen(false)
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm
+                        text-red-400 hover:text-red-300 hover:bg-surface transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
               <Link href="/dashboard"
                 className="text-sm bg-green text-bg px-4 py-1.5
                 rounded-md font-semibold hover:opacity-90
