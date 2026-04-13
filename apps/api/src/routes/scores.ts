@@ -39,7 +39,7 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
         ORDER BY repo_id, version DESC
       `;
       const { rows } = await query(sql, [userId]);
-      
+
       // The instructions say "Return array sorted by score DESC"
       // DISTINCT ON requires repo_id as the first ORDER BY column,
       // so we sort in JS after fetching.
@@ -109,7 +109,7 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
         if (r.score > topRepo.score) {
           topRepo = { fullName: r.full_name, score: r.score };
         }
-        
+
         const tier = r.complexity_tier || 'trivial';
         distr[tier] = (distr[tier] || 0) + 1;
       }
@@ -136,7 +136,7 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
   fastify.get('/scores/:repoId', async (request, reply) => {
     const userId = (request as any).user.id;
     const { repoId } = request.params as { repoId: string };
-    
+
     // Quick handle of /scores/summary routing conflict
     // Fastify processes specific routes before parameterized routes
     // generally but since we defined summary above this, we are good.
@@ -149,7 +149,7 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
         ORDER BY version DESC
       `;
       const { rows } = await query(sql, [userId, repoId]);
-      
+
       const formatted = rows.map(r => ({
         id: r.id,
         repoId: r.repo_id,
@@ -176,21 +176,21 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
   fastify.get('/profile/:username',
     { config: { skipAuth: true } },
     async (request, reply) => {
-    const { username } = request.params as { username: string }
+      const { username } = request.params as { username: string }
 
-    // Find user
-    const userResult = await query(
-      'SELECT id FROM users WHERE github_username = $1',
-      [username]
-    )
-    if (userResult.rows.length === 0) {
-      return reply.code(404).send({ error: 'User not found' })
-    }
-    const userId = userResult.rows[0].id
+      // Find user
+      const userResult = await query(
+        'SELECT id FROM users WHERE github_username = $1',
+        [username]
+      )
+      if (userResult.rows.length === 0) {
+        return reply.code(404).send({ error: 'User not found' })
+      }
+      const userId = userResult.rows[0].id
 
-    // Latest score per repo
-    const scoresResult = await query(
-      `SELECT DISTINCT ON (s.repo_id)
+      // Latest score per repo
+      const scoresResult = await query(
+        `SELECT DISTINCT ON (s.repo_id)
          s.score, s.complexity_tier as "complexityTier",
          s.comprehension_health as "comprehensionHealth",
          s.hallucination_debt as "hallucinationDebt",
@@ -204,12 +204,12 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
        JOIN repos r ON r.id = s.repo_id
        WHERE s.user_id = $1
        ORDER BY s.repo_id, s.version DESC`,
-      [userId]
-    )
+        [userId]
+      )
 
-    // Summary
-    const summaryResult = await query(
-      `SELECT
+      // Summary
+      const summaryResult = await query(
+        `SELECT
          AVG(sub.score)::int as "averageScore",
          COUNT(*) as "totalRepos",
          MAX(sub.score) as "topScore"
@@ -219,43 +219,101 @@ export default async function scoresRoutes(fastify: FastifyInstance) {
          WHERE user_id = $1
          ORDER BY repo_id, version DESC
        ) sub`,
-      [userId]
-    )
+        [userId]
+      )
 
-    const topRepoResult = await query(
-      `SELECT r.full_name as "fullName", s.score
+      const topRepoResult = await query(
+        `SELECT r.full_name as "fullName", s.score
        FROM scores s
        JOIN repos r ON r.id = s.repo_id
        WHERE s.user_id = $1
        ORDER BY s.score DESC
        LIMIT 1`,
-      [userId]
-    )
+        [userId]
+      )
 
-    const scores = scoresResult.rows.map(row => ({
-      score: row.score,
-      complexityTier: row.complexityTier,
-      comprehensionHealth: row.comprehensionHealth,
-      hallucinationDebt: row.hallucinationDebt,
-      architecturalConsistency: row.architecturalConsistency,
-      debtTrajectory: row.debtTrajectory,
-      breakdown: row.breakdown,
-      createdAt: row.createdAt,
-      repo: {
-        name: row.name,
-        fullName: row.fullName,
-        language: row.language,
-        description: row.description,
+      const scores = scoresResult.rows.map(row => ({
+        score: row.score,
+        complexityTier: row.complexityTier,
+        comprehensionHealth: row.comprehensionHealth,
+        hallucinationDebt: row.hallucinationDebt,
+        architecturalConsistency: row.architecturalConsistency,
+        debtTrajectory: row.debtTrajectory,
+        breakdown: row.breakdown,
+        createdAt: row.createdAt,
+        repo: {
+          name: row.name,
+          fullName: row.fullName,
+          language: row.language,
+          description: row.description,
+        }
+      }))
+        .sort((a, b) => b.score - a.score)
+
+      const summary = {
+        averageScore: summaryResult.rows[0]?.averageScore ?? 0,
+        totalRepos: Number(summaryResult.rows[0]?.totalRepos ?? 0),
+        topRepo: topRepoResult.rows[0] ?? null,
       }
-    }))
-    .sort((a, b) => b.score - a.score)
 
-    const summary = {
-      averageScore: summaryResult.rows[0]?.averageScore ?? 0,
-      totalRepos: Number(summaryResult.rows[0]?.totalRepos ?? 0),
-      topRepo: topRepoResult.rows[0] ?? null,
-    }
+      return { scores, summary }
+    })
 
-    return { scores, summary }
-  })
+  fastify.get('/profile/:username/:reponame',
+    { config: { skipAuth: true } },
+    async (request, reply) => {
+      const { username, reponame } = request.params as { username: string, reponame: string }
+
+      // Find user
+      const userResult = await query(
+        'SELECT id FROM users WHERE github_username = $1',
+        [username]
+      )
+      if (userResult.rows.length === 0) {
+        return reply.code(404).send({ error: 'User not found' })
+      }
+      const user = userResult.rows[0]
+
+      // Find repo (case-insensitive name check)
+      const repoResult = await query(
+        'SELECT * FROM repos WHERE user_id = $1 AND LOWER(name) = LOWER($2)',
+        [user.id, reponame]
+      )
+      if (repoResult.rows.length === 0) {
+        return reply.code(404).send({ error: 'Repo not found' })
+      }
+      const repo = repoResult.rows[0]
+
+      // Find latest score
+      const scoreResult = await query(
+        'SELECT * FROM scores WHERE repo_id = $1 ORDER BY version DESC LIMIT 1',
+        [repo.id]
+      )
+      if (scoreResult.rows.length === 0) {
+        return reply.code(404).send({ error: 'Not yet analyzed' })
+      }
+      const score = scoreResult.rows[0]
+
+      return {
+        repo: {
+          fullName: repo.full_name,
+          name: repo.name,
+          description: repo.description,
+          language: repo.language,
+          stars: repo.stars
+        },
+        score: {
+          score: score.score,
+          comprehensionHealth: score.comprehension_health,
+          hallucinationDebt: score.hallucination_debt,
+          architecturalConsistency: score.architectural_consistency,
+          debtTrajectory: score.debt_trajectory,
+          complexityAdjustment: score.complexity_adjustment,
+          complexityTier: score.complexity_tier,
+          version: score.version,
+          createdAt: score.created_at
+        },
+        breakdown: score.breakdown
+      }
+    })
 }

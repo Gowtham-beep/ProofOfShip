@@ -11,9 +11,23 @@ export default function LandingPage() {
 
   useEffect(() => {
     setMounted(true)
-    if (localStorage.getItem('pos_token')) {
-      setIsLoggedIn(true)
-    }
+    const token = localStorage.getItem('pos_token')
+    if (!token) return
+    
+    fetch('http://localhost:3001/auth/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => {
+        if (r.ok) {
+          setIsLoggedIn(true)
+        } else {
+          localStorage.removeItem('pos_token')
+          setIsLoggedIn(false)
+        }
+      })
+      .catch(() => {
+        setIsLoggedIn(false)
+      })
   }, [])
   return (
     <div className="min-h-screen bg-bg">
@@ -132,15 +146,37 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex justify-center">
-              <img
-                src="http://localhost:3002/card/Gowtham-beep"
-                alt="ProofOfShip Score Card"
-                width={495}
-                height={195}
-                style={{ borderRadius: '10px',
-                  boxShadow: '0 0 40px rgba(63,185,80,0.15)'
-                }}
-              />
+              <svg width="495" height="195" viewBox="0 0 495 195" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '10px', boxShadow: '0 0 40px rgba(63,185,80,0.15)' }}>
+                <rect width="495" height="195" rx="10" fill="#0a0a0a" stroke="#1a1a1a" strokeWidth="1" />
+                <circle cx="40" cy="40" r="16" fill="#333" />
+                <text x="64" y="45" fill="#3fb950" fontFamily="sans-serif" fontSize="14" fontWeight="bold">@demo-user</text>
+                
+                <text x="24" y="85" fill="#8b949e" fontFamily="sans-serif" fontSize="12">ProofOfShip Score</text>
+                <text x="24" y="130" fill="#3fb950" fontFamily="sans-serif" fontSize="48" fontWeight="bold">74</text>
+                
+                <rect x="24" y="145" width="70" height="20" rx="10" fill="#1a1a1a" />
+                <text x="33" y="159" fill="#8b949e" fontFamily="sans-serif" fontSize="10">moderate</text>
+
+                <text x="220" y="40" fill="#8b949e" fontFamily="sans-serif" fontSize="10" fontWeight="bold" letterSpacing="1">SCORE BREAKDOWN</text>
+                
+                <text x="220" y="65" fill="#8b949e" fontFamily="sans-serif" fontSize="10">Comprehension Health</text>
+                <rect x="220" y="72" width="220" height="6" rx="3" fill="#1a1a1a" />
+                <rect x="220" y="72" width="176" height="6" rx="3" fill="#3fb950" />
+                
+                <text x="220" y="95" fill="#8b949e" fontFamily="sans-serif" fontSize="10">Hallucination Debt</text>
+                <rect x="220" y="102" width="220" height="6" rx="3" fill="#1a1a1a" />
+                <rect x="220" y="102" width="143" height="6" rx="3" fill="#3fb950" />
+                
+                <text x="220" y="125" fill="#8b949e" fontFamily="sans-serif" fontSize="10">Architectural Consistency</text>
+                <rect x="220" y="132" width="220" height="6" rx="3" fill="#1a1a1a" />
+                <rect x="220" y="132" width="154" height="6" rx="3" fill="#3fb950" />
+                
+                <text x="220" y="155" fill="#8b949e" fontFamily="sans-serif" fontSize="10">Debt Trajectory</text>
+                <rect x="220" y="162" width="220" height="6" rx="3" fill="#1a1a1a" />
+                <rect x="220" y="162" width="165" height="6" rx="3" fill="#3fb950" />
+
+                <text x="390" y="180" fill="#484f58" fontFamily="monospace" fontSize="10">proofofship.dev</text>
+              </svg>
             </div>
           </div>
         </div>

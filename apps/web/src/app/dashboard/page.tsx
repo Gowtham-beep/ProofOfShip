@@ -387,7 +387,7 @@ export default function Dashboard() {
             </p>
             <div className="space-y-3">
               {scores.map(s => (
-                <div key={s.id} className="bg-surface border border-border rounded-lg p-5 flex items-center justify-between gap-4">
+                <Link href={`/repo/${username}/${s.repo.name}`} key={s.id} className="bg-surface border border-border rounded-lg p-5 flex items-center justify-between gap-4 hover:border-muted transition-colors block">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <p className="font-semibold text-text truncate">{s.repo.name}</p>
@@ -400,7 +400,7 @@ export default function Dashboard() {
                     <p className="text-2xl font-black font-mono" style={{ color: scoreColor(s.score) }}>{s.score}</p>
                     <p className="text-xs text-muted">/ 100</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
