@@ -27,6 +27,9 @@ async function callGemini(model: string, prompt: string): Promise<string> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0,
+        },
       }),
       signal: controller.signal,
     });
@@ -54,8 +57,9 @@ export async function getLLMInsights(
     hallucinationDebt: number;
     architecturalConsistency: number;
     debtTrajectory: number;
+    complexityAdjustment: number;
   },
-): Promise<LLMInsights & { comprehensionScoreAdjustment: number }> {
+): Promise<LLMInsights & { scoreAdjustment: number }> {
   try {
     // ── Step A: gemini-2.5-flash for hallucination risk ───────────────────────
     const flashPrompt = `You are a code quality analyzer. Based on this repo metadata, classify the hallucination risk of AI-generated code.
@@ -95,12 +99,16 @@ Has docs: ${signals.hasDocs}
 Has CI: ${signals.hasCI}
 Commit velocity: ${signals.commitVelocity}
 Complexity tier: ${complexityTier}
-Deterministic scores:
+Deterministic sub-scores:
   Comprehension health: ${deterministicScores.comprehensionHealth}
+  Hallucination debt: ${deterministicScores.hallucinationDebt}
   Architectural consistency: ${deterministicScores.architecturalConsistency}
   Debt trajectory: ${deterministicScores.debtTrajectory}
+  Complexity adjustment: ${deterministicScores.complexityAdjustment}
 
-Based on this metadata, provide a quality assessment.
+Based on this metadata, provide a quality assessment and a final score adjustment.
+The adjustment should be based on "unquantifiable" quality signals (e.g. repo reputation, topic relevance, description clarity) that the static analysis might miss.
+
 Respond with ONLY a JSON object, no markdown, no explanation:
 {
   "comprehensionSummary": "2-3 sentence assessment of how understandable this codebase likely is",
@@ -110,7 +118,7 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     "specific actionable suggestion 2",
     "specific actionable suggestion 3"
   ],
-  "comprehensionScoreAdjustment": 0
+  "scoreAdjustment": 0
 }`;
 
     const proRaw = await callGemini('gemini-2.5-pro', proPrompt);
@@ -118,21 +126,22 @@ Respond with ONLY a JSON object, no markdown, no explanation:
       comprehensionSummary: string;
       architectureNotes: string;
       improvementSuggestions: string[];
-      comprehensionScoreAdjustment: number;
+      scoreAdjustment: number;
     };
 
     // ── Step C: Combine ───────────────────────────────────────────────────────
-    const adjustment = Math.max(-15, Math.min(15, proResult.comprehensionScoreAdjustment ?? 0));
+    // Strictly clamp adjustment between -5 and +5
+    const adjustment = Math.max(-5, Math.min(5, proResult.scoreAdjustment ?? 0));
 
     return {
       comprehensionSummary: proResult.comprehensionSummary,
       hallucinationRisk: flashResult.risk,
       architectureNotes: proResult.architectureNotes,
       improvementSuggestions: proResult.improvementSuggestions ?? [],
-      comprehensionScoreAdjustment: adjustment,
+      scoreAdjustment: adjustment,
     };
   } catch (err) {
     console.error('[LLM] getLLMInsights failed, using safe defaults:', (err as Error).message);
-    return { ...SAFE_DEFAULTS, comprehensionScoreAdjustment: 0 };
+    return { ...SAFE_DEFAULTS, scoreAdjustment: 0 };
   }
 }

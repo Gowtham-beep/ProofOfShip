@@ -111,6 +111,7 @@ export interface ScoreBreakdown {
 export interface ProofOfShipScore {
   repoId: string;
   userId: string;
+  commitHash?: string;
   score: number;
   breakdown: ScoreBreakdown;
   percentile: number | null;

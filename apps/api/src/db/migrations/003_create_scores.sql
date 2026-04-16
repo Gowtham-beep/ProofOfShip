@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   repo_id UUID NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  commit_hash VARCHAR(255),
   score INTEGER NOT NULL,
   comprehension_health INTEGER NOT NULL,
   hallucination_debt INTEGER NOT NULL,
@@ -12,7 +13,8 @@ CREATE TABLE IF NOT EXISTS scores (
   breakdown JSONB NOT NULL DEFAULT '{}',
   percentile INTEGER,
   version INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(repo_id, commit_hash)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scores_repo_id ON scores(repo_id);

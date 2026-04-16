@@ -54,13 +54,13 @@ export const analysisWorker = new Worker<AnalysisJobData>(
 
             const insertSql = `
               INSERT INTO scores (
-                repo_id, user_id, score,
+                repo_id, user_id, commit_hash, score,
                 comprehension_health, hallucination_debt,
                 architectural_consistency, debt_trajectory,
                 complexity_adjustment, complexity_tier,
                 breakdown, version
               ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
               )
               ON CONFLICT DO NOTHING
             `;
@@ -68,6 +68,7 @@ export const analysisWorker = new Worker<AnalysisJobData>(
             await query(insertSql, [
               scoreResult.repoId,
               scoreResult.userId,
+              scoreResult.commitHash,
               scoreResult.score,
               scoreResult.breakdown.comprehensionHealth,
               scoreResult.breakdown.hallucinationDebt,

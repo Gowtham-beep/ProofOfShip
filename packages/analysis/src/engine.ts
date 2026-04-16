@@ -33,37 +33,44 @@ export async function analyzeRepo(repo: RepoRecord): Promise<ProofOfShipScore> {
     hallucinationDebt,
     architecturalConsistency,
     debtTrajectory,
+    complexityAdjustment,
   });
 
-  // Apply LLM comprehension adjustment
-  const { comprehensionScoreAdjustment, ...llmInsights } = llmResult;
-  const adjustedComprehensionHealth = clamp(comprehensionHealth + comprehensionScoreAdjustment);
+  const { scoreAdjustment, ...llmInsights } = llmResult;
 
-  // 5. Weighted final score
-  const rawScore =
-    adjustedComprehensionHealth * 0.30 +
+  // 5. Base Score calculation (Deterministic)
+  // Weighted average of static analysis components
+  const baseScore =
+    comprehensionHealth * 0.30 +
     hallucinationDebt * 0.25 +
     architecturalConsistency * 0.20 +
     debtTrajectory * 0.15 +
     complexityAdjustment * 0.10;
 
-  const score = clamp(Math.round(rawScore));
+  // 6. Final Score with LLM Adjustment
+  // Base score is already [0, 100]. LLM adjustment is [-5, +5].
+  const finalScore = clamp(Math.round(baseScore + scoreAdjustment));
 
   const breakdown: ScoreBreakdown = {
-    comprehensionHealth: adjustedComprehensionHealth,
+    comprehensionHealth,
     hallucinationDebt,
     architecturalConsistency,
     debtTrajectory,
     complexityAdjustment,
     complexityTier: tier,
     signals,
-    llmInsights,
+    llmInsights: {
+      ...llmInsights,
+      // We can still store the adjustment in the breakdown if needed, 
+      // but let's keep it clean for now as per instructions.
+    },
   };
 
   return {
     repoId: repo.id,
     userId: repo.userId,
-    score,
+    commitHash: repo.pushedAt || undefined,
+    score: finalScore,
     breakdown,
     percentile: null,
     version: 1,
