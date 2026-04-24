@@ -1,3 +1,4 @@
+
 import type { RepoRecord, ScoreBreakdown, ComplexityTier } from '@proofofship/types';
 
 type Signals = ScoreBreakdown['signals'];
@@ -26,6 +27,7 @@ async function callGemini(model: string, prompt: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0,

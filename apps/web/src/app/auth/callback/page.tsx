@@ -1,8 +1,8 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AuthCallback() {
+function CallbackLogic() {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -35,5 +35,19 @@ export default function AuthCallback() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        </div>
+      </div>
+    }>
+      <CallbackLogic />
+    </Suspense>
   )
 }

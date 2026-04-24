@@ -9,6 +9,10 @@ export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  const [guestUrl, setGuestUrl] = useState('')
+  const [isGuestLoading, setIsGuestLoading] = useState(false)
+  const [guestError, setGuestError] = useState('')
+
   useEffect(() => {
     setMounted(true)
     const token = localStorage.getItem('pos_token')
@@ -29,6 +33,43 @@ export default function LandingPage() {
         setIsLoggedIn(false)
       })
   }, [])
+
+  const handleGuestAudit = async () => {
+    setIsGuestLoading(true)
+    setGuestError('')
+    try {
+      const res = await fetch('http://localhost:3001/analyze/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: guestUrl })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to start audit')
+
+      // Poll until the result is ready
+      const { username, reponame } = data;
+      const poll = async () => {
+        try {
+          const checkRes = await fetch(`http://localhost:3001/profile/${username}/${reponame}`)
+          if (checkRes.ok) {
+             router.push(`/repo/${username}/${reponame}`)
+          } else if (checkRes.status === 404) {
+             setTimeout(poll, 2000)
+          } else {
+             throw new Error('Analysis failed')
+          }
+        } catch(e) {
+          setGuestError('Error polling analysis status')
+          setIsGuestLoading(false)
+        }
+      }
+      poll()
+    } catch (e: any) {
+      setGuestError(e.message)
+      setIsGuestLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
@@ -72,34 +113,64 @@ export default function LandingPage() {
               Go to Dashboard
             </button>
           ) : (
-            <a href="http://localhost:3001/auth/github"
-              className="inline-flex items-center gap-3
-              bg-green text-bg px-8 py-4 rounded-lg
-              font-bold text-lg hover:opacity-90
-              transition-opacity active:scale-95">
-              <svg width="20" height="20" viewBox="0 0 24 24"
-                fill="currentColor">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31
-                  3.435 9.795 8.205 11.385.6.105.825-.255
-                  .825-.57 0-.285-.015-1.23-.015-2.235-3.015
-                  .555-3.795-.735-4.035-1.41-.135-.345-.72
-                  -1.41-1.23-1.695-.42-.225-1.02-.78-.015
-                  -.795.945-.015 1.62.87 1.845 1.23 1.08
-                  1.815 2.805 1.305 3.495.99.105-.78.42
-                  -1.305.765-1.605-2.67-.3-5.46-1.335-5.46
-                  -5.925 0-1.305.465-2.385 1.23-3.225-.12
-                  -.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3
-                  1.23.96-.27 1.98-.405 3-.405s2.04.135 3
-                  .405c2.295-1.56 3.3-1.23 3.3-1.23.66
-                  1.65.24 2.88.12 3.18.765.84 1.23 1.905
-                  1.23 3.225 0 4.605-2.805 5.625-5.475
-                  5.925.435.375.81 1.095.81 2.22 0 1.605
-                  -.015 2.895-.015 3.3 0 .315.225.69.825
-                  .57A12.02 12.02 0 0 0 24 12c0-6.63-5.37
-                  -12-12-12z"/>
-              </svg>
-              Connect GitHub
-            </a>
+            <div className="space-y-6">
+              <a href="http://localhost:3001/auth/github"
+                className="inline-flex items-center gap-3
+                bg-green text-bg px-8 py-4 rounded-lg
+                font-bold text-lg hover:opacity-90
+                transition-opacity active:scale-95">
+                <svg width="20" height="20" viewBox="0 0 24 24"
+                  fill="currentColor">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31
+                    3.435 9.795 8.205 11.385.6.105.825-.255
+                    .825-.57 0-.285-.015-1.23-.015-2.235-3.015
+                    .555-3.795-.735-4.035-1.41-.135-.345-.72
+                    -1.41-1.23-1.695-.42-.225-1.02-.78-.015
+                    -.795.945-.015 1.62.87 1.845 1.23 1.08
+                    1.815 2.805 1.305 3.495.99.105-.78.42
+                    -1.305.765-1.605-2.67-.3-5.46-1.335-5.46
+                    -5.925 0-1.305.465-2.385 1.23-3.225-.12
+                    -.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3
+                    1.23.96-.27 1.98-.405 3-.405s2.04.135 3
+                    .405c2.295-1.56 3.3-1.23 3.3-1.23.66
+                    1.65.24 2.88.12 3.18.765.84 1.23 1.905
+                    1.23 3.225 0 4.605-2.805 5.625-5.475
+                    5.925.435.375.81 1.095.81 2.22 0 1.605
+                    -.015 2.895-.015 3.3 0 .315.225.69.825
+                    .57A12.02 12.02 0 0 0 24 12c0-6.63-5.37
+                    -12-12-12z"/>
+                </svg>
+                Connect GitHub
+              </a>
+
+              <div className="flex items-center gap-4">
+                <div className="h-px bg-border flex-1 max-w-[100px]"></div>
+                <span className="text-muted text-sm font-medium">OR</span>
+                <div className="h-px bg-border flex-1 max-w-[100px]"></div>
+              </div>
+
+              <div className="bg-surface border border-border p-2 rounded-xl flex items-center shadow-lg max-w-lg">
+                <input 
+                  type="text" 
+                  placeholder="Paste a public GitHub repo URL..." 
+                  className="flex-1 bg-transparent border-none outline-none px-4 text-text placeholder:text-muted"
+                  value={guestUrl}
+                  onChange={e => setGuestUrl(e.target.value)}
+                  disabled={isGuestLoading}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleGuestAudit()
+                  }}
+                />
+                <button 
+                  onClick={handleGuestAudit}
+                  disabled={isGuestLoading || !guestUrl}
+                  className="bg-green text-bg px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {isGuestLoading ? 'Auditing...' : 'Audit'}
+                </button>
+              </div>
+              {guestError && <p className="text-red mt-2 text-sm">{guestError}</p>}
+            </div>
           )}
         </div>
       </section>
