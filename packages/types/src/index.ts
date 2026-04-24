@@ -105,6 +105,9 @@ export interface ScoreBreakdown {
     hallucinationRisk: 'low' | 'medium' | 'high';
     architectureNotes: string;
     improvementSuggestions: string[];
+    techStackInsights?: string;
+    maintenanceRisk?: string;
+    scalabilityAssessment?: string;
   };
 }
 

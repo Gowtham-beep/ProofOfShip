@@ -62,7 +62,16 @@ export const analysisWorker = new Worker<AnalysisJobData>(
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
               )
-              ON CONFLICT DO NOTHING
+              ON CONFLICT (repo_id, commit_hash) DO UPDATE SET
+                score = EXCLUDED.score,
+                comprehension_health = EXCLUDED.comprehension_health,
+                hallucination_debt = EXCLUDED.hallucination_debt,
+                architectural_consistency = EXCLUDED.architectural_consistency,
+                debt_trajectory = EXCLUDED.debt_trajectory,
+                complexity_adjustment = EXCLUDED.complexity_adjustment,
+                complexity_tier = EXCLUDED.complexity_tier,
+                breakdown = EXCLUDED.breakdown,
+                version = EXCLUDED.version
             `;
             
             await query(insertSql, [

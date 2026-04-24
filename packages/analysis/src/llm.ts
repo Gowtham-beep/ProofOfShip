@@ -12,6 +12,9 @@ const SAFE_DEFAULTS: LLMInsights = {
   hallucinationRisk: 'medium',
   architectureNotes: 'Analysis unavailable',
   improvementSuggestions: [],
+  techStackInsights: 'Analysis unavailable',
+  maintenanceRisk: 'unknown',
+  scalabilityAssessment: 'Analysis unavailable',
 };
 
 async function callGemini(model: string, prompt: string): Promise<string> {
@@ -96,6 +99,8 @@ All languages: ${JSON.stringify(repo.languages ?? {})}
 Topics: ${(repo.topics ?? []).join(', ')}
 Size: ${repo.sizeKb}kb
 Stars: ${repo.stargazersCount}
+Forks: ${repo.forksCount}
+Open Issues: ${repo.openIssuesCount}
 Has tests: ${signals.hasTests}
 Has docs: ${signals.hasDocs}
 Has CI: ${signals.hasCI}
@@ -108,13 +113,15 @@ Deterministic sub-scores:
   Debt trajectory: ${deterministicScores.debtTrajectory}
   Complexity adjustment: ${deterministicScores.complexityAdjustment}
 
-Based on this metadata, provide a quality assessment and a final score adjustment.
-The adjustment should be based on "unquantifiable" quality signals (e.g. repo reputation, topic relevance, description clarity) that the static analysis might miss.
+Based on this metadata, provide a comprehensive quality assessment and a final score adjustment.
 
 Respond with ONLY a JSON object, no markdown, no explanation:
 {
   "comprehensionSummary": "2-3 sentence assessment of how understandable this codebase likely is",
   "architectureNotes": "1-2 sentences on architectural consistency signals",
+  "techStackInsights": "1-2 sentences about the tech stack choices and their appropriateness",
+  "maintenanceRisk": "1-2 sentences on the maintenance health and future risks (consider velocity, issues)",
+  "scalabilityAssessment": "1-2 sentences on how well this project might scale based on signals",
   "improvementSuggestions": [
     "specific actionable suggestion 1",
     "specific actionable suggestion 2",
@@ -127,6 +134,9 @@ Respond with ONLY a JSON object, no markdown, no explanation:
     const proResult = JSON.parse(proRaw) as {
       comprehensionSummary: string;
       architectureNotes: string;
+      techStackInsights: string;
+      maintenanceRisk: string;
+      scalabilityAssessment: string;
       improvementSuggestions: string[];
       scoreAdjustment: number;
     };
@@ -139,6 +149,9 @@ Respond with ONLY a JSON object, no markdown, no explanation:
       comprehensionSummary: proResult.comprehensionSummary,
       hallucinationRisk: flashResult.risk,
       architectureNotes: proResult.architectureNotes,
+      techStackInsights: proResult.techStackInsights,
+      maintenanceRisk: proResult.maintenanceRisk,
+      scalabilityAssessment: proResult.scalabilityAssessment,
       improvementSuggestions: proResult.improvementSuggestions ?? [],
       scoreAdjustment: adjustment,
     };
