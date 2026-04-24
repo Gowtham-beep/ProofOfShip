@@ -17,8 +17,8 @@ const SAFE_DEFAULTS: LLMInsights = {
   scalabilityAssessment: 'Analysis unavailable',
 };
 
-async function callGemini(model: string, prompt: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
+async function callGemini(model: string, prompt: string, apiKey?: string): Promise<string> {
+  const key = apiKey || process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY is not set');
 
   const controller = new AbortController();
@@ -64,8 +64,12 @@ export async function getLLMInsights(
     debtTrajectory: number;
     complexityAdjustment: number;
   },
+  config?: { apiKey?: string; model?: string }
 ): Promise<LLMInsights & { scoreAdjustment: number }> {
   try {
+    const flashModel = config?.model || 'gemini-2.5-flash';
+    const proModel = config?.model || 'gemini-2.5-pro';
+
     // ── Step A: gemini-2.5-flash for hallucination risk ───────────────────────
     const flashPrompt = `You are a code quality analyzer. Based on this repo metadata, classify the hallucination risk of AI-generated code.
 
@@ -83,7 +87,7 @@ Respond with ONLY a JSON object, no markdown, no explanation:
   "reason": "one sentence explanation"
 }`;
 
-    const flashRaw = await callGemini('gemini-2.5-flash', flashPrompt);
+    const flashRaw = await callGemini(flashModel, flashPrompt, config?.apiKey);
     const flashResult = JSON.parse(flashRaw) as {
       risk: 'low' | 'medium' | 'high';
       reason: string;
@@ -130,7 +134,7 @@ Respond with ONLY a JSON object, no markdown, no explanation:
   "scoreAdjustment": 0
 }`;
 
-    const proRaw = await callGemini('gemini-2.5-pro', proPrompt);
+    const proRaw = await callGemini(proModel, proPrompt, config?.apiKey);
     const proResult = JSON.parse(proRaw) as {
       comprehensionSummary: string;
       architectureNotes: string;

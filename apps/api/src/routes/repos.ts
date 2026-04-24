@@ -44,7 +44,11 @@ export default async function reposRoutes(fastify: FastifyInstance) {
 
   fastify.post('/repos/analyze', async (request, reply) => {
     const userId = (request as any).user.id;
-    const { repoIds } = request.body as { repoIds: string[] };
+    const { repoIds, apiKey, model } = request.body as { 
+      repoIds: string[]; 
+      apiKey?: string; 
+      model?: string; 
+    };
 
     if (!Array.isArray(repoIds) || repoIds.length === 0 || repoIds.length > 20) {
       return reply.code(400).send({ error: 'repoIds must be a non-empty array, max 20' });
@@ -62,7 +66,12 @@ export default async function reposRoutes(fastify: FastifyInstance) {
       return { message: 'Analysis queued', jobId: null, repoCount: 0 };
     }
 
-    const job = await analysisQueue.add('analyze', { userId, repoIds: validRepoIds });
+    const job = await analysisQueue.add('analyze', { 
+      userId, 
+      repoIds: validRepoIds,
+      apiKey,
+      model
+    });
     return { message: 'Analysis queued', jobId: job.id, repoCount: validRepoIds.length };
   });
 

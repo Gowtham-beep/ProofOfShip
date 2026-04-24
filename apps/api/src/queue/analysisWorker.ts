@@ -7,6 +7,8 @@ import type { RepoRecord } from '@proofofship/types';
 export interface AnalysisJobData {
   userId: string;
   repoIds: string[];
+  apiKey?: string;
+  model?: string;
 }
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -14,7 +16,7 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 export const analysisWorker = new Worker<AnalysisJobData>(
   'analysis',
   async (job: Job<AnalysisJobData>) => {
-    const { userId, repoIds } = job.data;
+    const { userId, repoIds, apiKey, model } = job.data;
     let scored = 0;
 
     for (let i = 0; i < repoIds.length; i++) {
@@ -50,7 +52,7 @@ export const analysisWorker = new Worker<AnalysisJobData>(
         };
 
         try {
-            const scoreResult = await analyzeRepo(repo);
+            const scoreResult = await analyzeRepo(repo, { apiKey, model });
 
             const insertSql = `
               INSERT INTO scores (

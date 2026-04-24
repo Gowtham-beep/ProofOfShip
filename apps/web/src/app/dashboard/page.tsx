@@ -68,7 +68,18 @@ export default function Dashboard() {
   const [queueMessage, setQueueMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRepoIds, setSelectedRepoIds] = useState<Set<string>>(new Set())
+  const [apiKey, setApiKey] = useState('')
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    // Try to load saved API key from localStorage
+    const savedKey = localStorage.getItem('pos_gemini_api_key')
+    if (savedKey) setApiKey(savedKey)
+    const savedModel = localStorage.getItem('pos_gemini_model')
+    if (savedModel) setSelectedModel(savedModel)
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -143,6 +154,11 @@ export default function Dashboard() {
 
   const handleAnalyze = async () => {
     if (selectedRepoIds.size === 0) return
+
+    // Save settings to localStorage
+    localStorage.setItem('pos_gemini_api_key', apiKey)
+    localStorage.setItem('pos_gemini_model', selectedModel)
+
     const initialScoreCount = scores.length
     const expectedCount = selectedRepoIds.size
     setAnalyzing(true)
@@ -156,7 +172,11 @@ export default function Dashboard() {
       const res = await fetch('http://localhost:3001/repos/analyze', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ repoIds: Array.from(selectedRepoIds) })
+        body: JSON.stringify({ 
+          repoIds: Array.from(selectedRepoIds),
+          apiKey: apiKey || undefined,
+          model: selectedModel || undefined
+        })
       })
       
       if (res.ok) {
@@ -341,6 +361,46 @@ export default function Dashboard() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Advanced Settings */}
+              <div className="mb-6 border border-border rounded-lg overflow-hidden bg-bg">
+                <button 
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="w-full px-4 py-2 text-left text-xs font-bold text-muted flex items-center justify-between hover:bg-surface transition-colors">
+                  <span>ADVANCED ANALYSIS SETTINGS (OPTIONAL)</span>
+                  <span>{showAdvanced ? '−' : '+'}</span>
+                </button>
+                {showAdvanced && (
+                  <div className="p-4 border-t border-border space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-bold mb-1">Custom Gemini API Key</label>
+                        <input
+                          type="password"
+                          placeholder="Paste your API key here..."
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          className="w-full bg-surface border border-border text-text text-sm rounded px-3 py-2 focus:outline-none focus:border-green"
+                        />
+                        <p className="text-[10px] text-muted mt-1">If provided, we use your quota. If empty, we use our shared key.</p>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-muted uppercase font-bold mb-1">Model Selection</label>
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className="w-full bg-surface border border-border text-text text-sm rounded px-3 py-2 focus:outline-none focus:border-green appearance-none cursor-pointer">
+                          <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fastest)</option>
+                          <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Exp (Deepest)</option>
+                          <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        </select>
+                        <p className="text-[10px] text-muted mt-1">Deep models provide more accurate insights but are slower.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {queueMessage ? (

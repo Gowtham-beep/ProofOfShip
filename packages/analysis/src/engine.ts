@@ -13,7 +13,10 @@ function clamp(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-export async function analyzeRepo(repo: RepoRecord): Promise<ProofOfShipScore> {
+export async function analyzeRepo(
+  repo: RepoRecord,
+  config?: { apiKey?: string; model?: string }
+): Promise<ProofOfShipScore> {
   // 1. Complexity tier
   const tier = computeComplexityTier(repo);
 
@@ -28,13 +31,19 @@ export async function analyzeRepo(repo: RepoRecord): Promise<ProofOfShipScore> {
   const complexityAdjustment = scoreComplexityAdjustment(tier);
 
   // 4. LLM insights (never throws)
-  const llmResult = await getLLMInsights(repo, signals, tier, {
-    comprehensionHealth,
-    hallucinationDebt,
-    architecturalConsistency,
-    debtTrajectory,
-    complexityAdjustment,
-  });
+  const llmResult = await getLLMInsights(
+    repo,
+    signals,
+    tier,
+    {
+      comprehensionHealth,
+      hallucinationDebt,
+      architecturalConsistency,
+      debtTrajectory,
+      complexityAdjustment,
+    },
+    config
+  );
 
   const { scoreAdjustment, ...llmInsights } = llmResult;
 
